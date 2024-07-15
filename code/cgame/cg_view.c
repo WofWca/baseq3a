@@ -354,8 +354,10 @@ static void CG_OffsetFirstPersonView( void ) {
 
 	// add angles based on bob
 
+	speed = cg.xyspeed;
 	// make sure the bob is visible even at low speeds
-	speed = cg.xyspeed > 200 ? cg.xyspeed : 200;
+	// This is terrible actually, makes the view snap when you stop moving.
+	// speed = cg.xyspeed > 200 ? cg.xyspeed : 200;
 
 	delta = cg.bobfracsin * cg_bobpitch.value * speed;
 	if (cg.predictedPlayerState.pm_flags & PMF_DUCKED)
