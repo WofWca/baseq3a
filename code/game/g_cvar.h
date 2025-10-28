@@ -62,6 +62,7 @@ G_CVAR( g_debugDamage, "g_debugDamage", "0", 0, 0, qfalse, qfalse )
 G_CVAR( g_debugAlloc, "g_debugAlloc", "0", 0, 0, qfalse, qfalse )
 G_CVAR( g_motd, "g_motd", "", 0, 0, qfalse, qfalse )
 G_CVAR( g_blood, "com_blood", "1", 0, 0, qfalse, qfalse )
+G_CVAR( g_allowGibbingAfterMatchEnd, "g_allowGibbingAfterMatchEnd", "1", CVAR_ARCHIVE, 0, qfalse, qfalse )
 
 G_CVAR( g_podiumDist, "g_podiumDist", "80", 0, 0, qfalse, qfalse )
 G_CVAR( g_podiumDrop, "g_podiumDrop", "70", 0, 0, qfalse, qfalse )
