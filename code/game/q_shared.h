@@ -996,6 +996,7 @@ typedef struct entityState_s {
 	int		eType;			// entityType_t
 	int		eFlags;
 
+	// Can use these??
 	trajectory_t	pos;	// for calculating position
 	trajectory_t	apos;	// for calculating angles
 
