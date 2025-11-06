@@ -1370,6 +1370,8 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 	if ( snap ) {
 		SnapVector( s->pos.trBase );
 	}
+	// Hell yea? This means that we can access player velocity
+	// from `trDelta`
 	// set the trDelta for flag direction
 	VectorCopy( ps->velocity, s->pos.trDelta );
 
