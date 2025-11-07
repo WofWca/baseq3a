@@ -91,6 +91,16 @@ CG_CVAR( cg_noVoiceText, "cg_noVoiceText", "0", CVAR_ARCHIVE )
 CG_CVAR( cg_buildScript, "com_buildScript", "0", 0 )	// force loading of all possible data amd error on failures
 CG_CVAR( cg_paused, "cl_paused", "0", CVAR_ROM )
 CG_CVAR( cg_blood, "com_blood", "1", CVAR_ARCHIVE )
+// TODO add `cg_oldGibs` (or `com_oldGibs`), so that it's easy to turn off
+// without getting a degree in gibs.
+CG_CVAR( cg_gibsInheritPlayerVelocity, "cg_gibsInheritPlayerVelocity", "1", CVAR_ARCHIVE )
+CG_CVAR( cg_gibsMaxRandomVelocity, "cg_gibsMaxRandomVelocity", "250", CVAR_ARCHIVE )
+// TODO, so, do we need `cg_gibsExtraVelocityFromDamage` if we have
+// `g_gibsExtraVelocityFromDamage2`?
+// Well maybe it's nice if the player wants to set a value
+// that is not supported by the server.
+CG_CVAR( cg_gibsExtraVelocityFromDamage, "cg_gibsExtraVelocityFromDamage", "0", CVAR_ARCHIVE )
+CG_CVAR( cg_gibsExtraVerticalVelocity, "cg_gibsExtraVerticalVelocity", "50", CVAR_ARCHIVE )
 #ifdef MISSIONPACK
 CG_CVAR( cg_redTeamName, "g_redteam", DEFAULT_REDTEAM_NAME, CVAR_ARCHIVE | CVAR_SERVERINFO | CVAR_USERINFO )
 CG_CVAR( cg_blueTeamName, "g_blueteam", DEFAULT_BLUETEAM_NAME, CVAR_ARCHIVE | CVAR_SERVERINFO | CVAR_USERINFO )
