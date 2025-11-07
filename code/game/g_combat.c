@@ -220,7 +220,7 @@ void LookAtKiller( gentity_t *self, gentity_t *inflictor, gentity_t *attacker ) 
 GibEntity
 ==================
 */
-void GibEntity( gentity_t *self, int killer ) {
+void GibEntity( gentity_t *self, int killer, vec3_t damageDir ) {
 #ifdef MISSIONPACK
 	gentity_t *ent;
 	int i;
@@ -242,7 +242,9 @@ void GibEntity( gentity_t *self, int killer ) {
 	}
 #endif
 
-	G_AddEvent( self, EV_GIB_PLAYER, killer );
+	// `killer` used to get passed as `eventParm`,
+	// but it's unused apparently
+	G_AddEvent( self, EV_GIB_PLAYER, DirToByte( damageDir ) );
 	self->takedamage = qfalse;
 	self->s.eType = ET_INVISIBLE;
 	self->r.contents = 0;
@@ -253,7 +255,7 @@ void GibEntity( gentity_t *self, int killer ) {
 body_die
 ==================
 */
-void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, vec3_t damageDir, int damage, int meansOfDeath ) {
 	if ( self->health > GIB_HEALTH ) {
 		return;
 	}
@@ -262,7 +264,7 @@ void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int d
 		return;
 	}
 
-	GibEntity( self, 0 );
+	GibEntity( self, 0, damageDir );
 }
 
 
@@ -393,13 +395,14 @@ void CheckAlmostScored( gentity_t *self, gentity_t *attacker ) {
 player_die
 ==================
 */
-void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, vec3_t damageDir, int damage, int meansOfDeath ) {
 	gentity_t	*ent;
 	int			anim;
 	int			contents;
 	int			killer;
 	int			i;
 	char		*killerName, *obit;
+	float		mass = 200; // TODO DRY
 
 	if ( self->client->ps.pm_type == PM_DEAD ) {
 		return;
@@ -595,7 +598,26 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	// never gib in a nodrop
 	if ( (self->health <= GIB_HEALTH && !(contents & CONTENTS_NODROP) && g_blood.integer) || meansOfDeath == MOD_SUICIDE) {
 		// gib death
-		GibEntity( self, killer );
+		// TODO consider applying extra velocity here,
+		// instead of simply passing the `damageDir` as a param.
+		// Maybe make this function accept a `knockback` param,
+		// which we have already calculated.
+		// But maybe that calculation is not something holy,
+		// because it's about an alive player knockback and not gibs.
+		//
+		// TODO but then we'd also have to do the same on `body_die`?
+		// And somewhere else?
+
+		VectorMA(
+			self->client->ps.velocity,
+			g_gibsExtraVelocityFromDamage2.value * (float)damage / mass,
+			damageDir,
+			self->client->ps.velocity
+		);
+		// VectorScale (dir, g_knockback.value * (float)knockback / mass, kvel);
+		// VectorAdd (targ->client->ps.velocity, kvel, targ->client->ps.velocity);
+
+		GibEntity( self, killer, damageDir );
 	} else {
 		// normal death
 		static int i;
@@ -1030,7 +1052,7 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 				targ->health = -999;
 
 			targ->enemy = attacker;
-			targ->die (targ, inflictor, attacker, take, mod);
+			targ->die (targ, inflictor, attacker, dir, take, mod);
 			return;
 		} else if ( targ->pain ) {
 			targ->pain (targ, attacker, take);
