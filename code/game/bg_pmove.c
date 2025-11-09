@@ -809,6 +809,9 @@ PM_DeadMove
 static void PM_DeadMove( void ) {
 	float	forward;
 
+	// This line is not present in the original code.
+	pm->ps->pm_flags |= PMF_NO_KNOCKBACK;
+
 	if ( !pml.walking ) {
 		return;
 	}
@@ -1922,6 +1925,7 @@ void PmoveSingle (pmove_t *pmove) {
 		pm->ps->pm_flags &= ~PMF_BACKWARDS_RUN;
 	}
 
+	// Or here?
 	if ( pm->ps->pm_type >= PM_DEAD ) {
 		pm->cmd.forwardmove = 0;
 		pm->cmd.rightmove = 0;
