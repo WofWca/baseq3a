@@ -881,7 +881,10 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	if ( knockback > 200 ) {
 		knockback = 200;
 	}
-	if ( targ->flags & FL_NO_KNOCKBACK ) {
+	if (
+		client && client->ps.pm_flags & PMF_NO_KNOCKBACK ||
+		targ->flags & FL_NO_KNOCKBACK
+	) {
 		knockback = 0;
 	}
 	if ( dflags & DAMAGE_NO_KNOCKBACK ) {
@@ -1045,8 +1048,8 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		}
 			
 		if ( targ->health <= 0 ) {
-			if ( client )
-				targ->flags |= FL_NO_KNOCKBACK;
+			// if ( client )
+			// 	targ->flags |= FL_NO_KNOCKBACK;
 
 			if (targ->health < -999)
 				targ->health = -999;
