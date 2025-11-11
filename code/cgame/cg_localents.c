@@ -149,9 +149,11 @@ void CG_FragmentBounceMark( localEntity_t *le, trace_t *trace ) {
 	}
 
 
-	// don't allow a fragment to make multiple marks, or they
-	// pile up while settling
-	le->leMarkType = LEMT_NONE;
+	// This is no longer needed, because we now decide whether to leave a mark
+	// purely based on impact velocity.
+	// // don't allow a fragment to make multiple marks, or they
+	// // pile up while settling
+	// le->leMarkType = LEMT_NONE;
 }
 
 /*
@@ -179,18 +181,22 @@ void CG_FragmentBounceSound( localEntity_t *le, trace_t *trace ) {
 
 	}
 
-	// don't allow a fragment to make multiple bounce sounds,
-	// or it gets too noisy as they settle
-	le->leBounceSoundType = LEBS_NONE;
+	// This is no longer needed, because we now decide whether to play a sound
+	// purely based on impact velocity.
+	// // don't allow a fragment to make multiple bounce sounds,
+	// // or it gets too noisy as they settle
+	// le->leBounceSoundType = LEBS_NONE;
 }
 
 
 /*
 ================
 CG_ReflectVelocity
+
+Modifies velocity of `le` and writes the difference to `velocityDifference`
 ================
 */
-void CG_ReflectVelocity( localEntity_t *le, trace_t *trace ) {
+void CG_ReflectVelocity( localEntity_t *le, trace_t *trace, vec3_t velocityDifference ) {
 	vec3_t	velocity;
 	float	dot;
 	int		hitTime;
@@ -202,6 +208,10 @@ void CG_ReflectVelocity( localEntity_t *le, trace_t *trace ) {
 	VectorMA( velocity, -2*dot, trace->plane.normal, le->pos.trDelta );
 
 	VectorScale( le->pos.trDelta, le->bounceFactor, le->pos.trDelta );
+
+	if (velocityDifference) {
+		VectorSubtract( le->pos.trDelta, velocity, velocityDifference );
+	}
 
 	VectorCopy( trace->endpos, le->pos.trBase );
 	le->pos.trTime = cg.time;
@@ -223,7 +233,7 @@ CG_AddFragment
 ================
 */
 static void CG_AddFragment( localEntity_t *le ) {
-	vec3_t	newOrigin;
+	vec3_t	newOrigin, impactVelocityDiff;
 	trace_t	trace;
 
 	if ( le->pos.trType == TR_STATIONARY ) {
@@ -283,14 +293,18 @@ static void CG_AddFragment( localEntity_t *le ) {
 		return;
 	}
 
-	// leave a mark
-	CG_FragmentBounceMark( le, &trace );
-
-	// do a bouncy sound
-	CG_FragmentBounceSound( le, &trace );
-
 	// reflect the velocity on the trace plane
-	CG_ReflectVelocity( le, &trace );
+	CG_ReflectVelocity( le, &trace, impactVelocityDiff );
+
+	if ( VectorLengthSquared( impactVelocityDiff ) >= Square( cg_bounceMarksMinImpactSpeed.value ) ) {
+		// leave a mark
+		CG_FragmentBounceMark( le, &trace );
+	}
+
+	if ( VectorLengthSquared( impactVelocityDiff ) >= Square( cg_bounceSoundMinImpactSpeed.value ) ) {
+		// do a bouncy sound
+		CG_FragmentBounceSound( le, &trace );
+	}
 
 	trap_R_AddRefEntityToScene( &le->refEntity );
 }
