@@ -3,6 +3,56 @@
 // cg_drawtools.c -- helper functions called by cg_draw, cg_scoreboard, cg_info, etc
 #include "cg_local.h"
 
+static screenPlacement_e cg_horizontalPlacement = PLACE_CENTER;
+static screenPlacement_e cg_verticalPlacement = PLACE_CENTER;
+static screenPlacement_e cg_lastHorizontalPlacement = PLACE_CENTER;
+static screenPlacement_e cg_lastVerticalPlacement = PLACE_CENTER;
+
+/*
+================
+CG_SetScreenPlacement
+================
+*/
+void CG_SetScreenPlacement(screenPlacement_e hpos, screenPlacement_e vpos)
+{
+	cg_lastHorizontalPlacement = cg_horizontalPlacement;
+	cg_lastVerticalPlacement = cg_verticalPlacement;
+
+	cg_horizontalPlacement = hpos;
+	cg_verticalPlacement = vpos;
+}
+
+/*
+================
+CG_PopScreenPlacement
+================
+*/
+void CG_PopScreenPlacement(void)
+{
+	cg_horizontalPlacement = cg_lastHorizontalPlacement;
+	cg_verticalPlacement = cg_lastVerticalPlacement;
+}
+
+/*
+================
+CG_GetScreenHorizontalPlacement
+================
+*/
+screenPlacement_e CG_GetScreenHorizontalPlacement(void)
+{
+	return cg_horizontalPlacement;
+}
+
+/*
+================
+CG_GetScreenVerticalPlacement
+================
+*/
+screenPlacement_e CG_GetScreenVerticalPlacement(void)
+{
+	return cg_verticalPlacement;
+}
+
 /*
 ================
 CG_AdjustFrom640

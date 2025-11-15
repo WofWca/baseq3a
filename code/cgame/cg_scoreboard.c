@@ -306,6 +306,8 @@ qboolean CG_DrawOldScoreboard( void ) {
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
 
+	CG_SetScreenPlacement(PLACE_CENTER, PLACE_CENTER);
+
 	// don't draw anything if the menu or console is up
 	if ( cg_paused.integer ) {
 		cg.deferredPlayerLoading = 0;
@@ -464,6 +466,8 @@ void CG_DrawOldTourneyScoreboard( void ) {
 	int				y;
 	int				i;
 
+	CG_SetScreenPlacement(PLACE_CENTER, PLACE_CENTER);
+
 	// request more scores regularly
 	if ( cg.scoresRequestTime + 2000 < cg.time ) {
 		cg.scoresRequestTime = cg.time;
@@ -473,7 +477,9 @@ void CG_DrawOldTourneyScoreboard( void ) {
 	// draw the dialog background
 	color[0] = color[1] = color[2] = 0.2f;
 	color[3] = 1;
+	CG_SetScreenPlacement(PLACE_STRETCH, PLACE_STRETCH);
 	CG_FillScreen( color );
+	CG_PopScreenPlacement();
 
 	// print the mesage of the day
 	s = CG_ConfigString( CS_MOTD );
