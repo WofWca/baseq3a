@@ -121,6 +121,7 @@ CG_CVAR( cg_oldRail, "cg_oldRail", "1", CVAR_ARCHIVE )
 CG_CVAR( cg_oldRocket, "cg_oldRocket", "1", CVAR_ARCHIVE )
 CG_CVAR( cg_oldPlasma, "cg_oldPlasma", "1", CVAR_ARCHIVE )
 CG_CVAR( cg_trueLightning, "cg_trueLightning", "0.0", CVAR_ARCHIVE )
+// Note that `cg_hitSounds` doesn't work because there are no audio files.
 CG_CVAR( cg_hitSounds, "cg_hitSounds", "0", CVAR_ARCHIVE )
 CG_CVAR( cg_enemyModel, "cg_enemyModel", "", CVAR_ARCHIVE )
 CG_CVAR( cg_enemyColors, "cg_enemyColors", "", CVAR_ARCHIVE )
