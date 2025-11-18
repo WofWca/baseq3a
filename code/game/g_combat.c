@@ -589,11 +589,10 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	// unless you aim at the feet.
 	// See https://github.com/ioquake/ioq3/issues/794.
 	//
-	// Note that without this line, when shooting at two players standing
-	// behind each other, the second target will take less damage,
-	// because the dead body of the first player will absorb the pellets
-	// until it gets gibbed (that is, up to 4 pellets,
-	// see `GIB_HEALTH` and `DEFAULT_SHOTGUN_DAMAGE`).
+	// Not executing this line makes is so that the corpse
+	// doesn't get shorter immediately on death
+	// and instead can still take up other pellets
+	// from the same shotgun shot.
 	//
 	// The purpose and the effect of this line is not entirely clear.
 	// Maybe it's to transition the player hitbox
@@ -1064,8 +1063,30 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		}
 			
 		if ( targ->health <= 0 ) {
-			if ( client )
-				targ->flags |= FL_NO_KNOCKBACK;
+			// In the original code we used to set `FL_NO_KNOCKBACK` here.
+			// However, that made it so that when fragging with the shotgun,
+			// the dead body does not gain momentum (knockback)
+			// from the pellets that come after the pellet
+			// that made the health go below 0.
+			// That resulted in the dead body not getting pushed
+			// as far as it should have been, and, most importantly,
+			// the gibs not getting enough momentum. See
+			// https://github.com/ec-/baseq3a/pull/53.
+			//
+			// Now we set the `FL_NO_KNOCKBACK` flag inside of `ClientEndFrame`,
+			// which is ran after all the pellets of the shotgun shot
+			// have done their thing,
+			// i.e. `FL_NO_KNOCKBACK` takes effect only on the next frame.
+			//
+			// Note that if the body gets gibbed then
+			// it will still stop absorbing pellets,
+			// i.e. this fix only adds at most `GIB_HEALTH` worth of knockback.
+			//
+			// This issiue is similar to
+			// https://github.com/ioquake/ioq3/issues/794.
+			//
+			// if ( client )
+			// 	targ->flags |= FL_NO_KNOCKBACK;
 
 			if (targ->health < -999)
 				targ->health = -999;
