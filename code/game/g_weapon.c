@@ -302,6 +302,23 @@ static qboolean ShotgunPellet( const vec3_t start, const vec3_t end, gentity_t *
 
 		if ( traceEnt->takedamage ) {
 			damage = DEFAULT_SHOTGUN_DAMAGE * s_quadFactor;
+
+			// When shooting through a corpse, gib it,
+			// but don't "absorb" the pellet, i.e. allow to hit a player
+			// through corpses.
+			// This code is not present in the original game,
+			// and is here to compensate for the balance changes
+			// that are introduced by the removal of the `self->r.maxs[2] = -8;`
+			// line in `player_die`. See
+			// - https://github.com/ioquake/ioq3/issues/794
+			// - https://github.com/OpenArena/gamecode/pull/349
+			if ( traceEnt->client && traceEnt->client->ps.pm_type == PM_DEAD ) {
+				G_Damage( traceEnt, ent, ent, forward, tr.endpos, damage, 0, MOD_SHOTGUN );
+				passent = traceEnt->s.number;
+				VectorCopy( tr.endpos, tr_start );
+				continue;
+			}
+
 #ifdef MISSIONPACK
 			if ( traceEnt->client && traceEnt->client->invulnerabilityTime > level.time ) {
 				if (G_InvulnerabilityEffect( traceEnt, forward, tr.endpos, impactpoint, bouncedir )) {
