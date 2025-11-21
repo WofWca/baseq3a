@@ -245,6 +245,7 @@ typedef struct {
 	int			teamVoted;
 
 	qboolean	inGame;
+	qboolean	damagePlums;		// do we want to display damage numbers?
 } clientPersistant_t;
 
 // unlagged
