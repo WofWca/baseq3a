@@ -580,7 +580,17 @@ void CG_GibPlayer( const vec3_t playerOrigin, const vec3_t playerAngles,
 	float playerHeight = 32 - MINS_Z;
 	float bottom = playerOrigin[2] + MINS_Z;
 	float playerRadius = 15;
-	float maxRandomVelocity = cg_gibsMaxRandomVelocity.value;
+	// We don't _have_ to be super accurate here and use the expensive
+	// `VectorLength`, but it's only calculated once per player getting gibbed,
+	// which is not too much.
+	//
+	// Having random velocity based on damage would probably be more accurate
+	// (e.g. if the player is already moving fast from a jump pad),
+	// but having random speed relative to the map (walls etc) is also sensible.
+	float maxRandomVelocity =
+		cg_gibsMaxRandomVelocity.value +
+		cg_gibsRandomVelocityBasedOnPlayerSpeed.value *
+		VectorLength( playerVelocity );
 	vec3_t playerVelocityScaled;
 	float jump = cg_gibsExtraVerticalVelocity.value;
 
