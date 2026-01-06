@@ -70,6 +70,7 @@ G_CVAR( g_intermissionDelay, "g_intermissionDelay", "1000", 0, 0, qfalse, qfalse
 // TODO note that this significantly affects the Battle Suit powerup.
 // Need to fix that.
 G_CVAR( g_oldSplashKnockback, "g_oldSplashKnockback", "1", 0, 0, qfalse, qfalse )
+G_CVAR( g_splashMoreUpwardKnockback, "g_splashMoreUpwardKnockback", "1", 0, 0, qfalse, qfalse )
 
 G_CVAR( g_podiumDist, "g_podiumDist", "80", 0, 0, qfalse, qfalse )
 G_CVAR( g_podiumDrop, "g_podiumDrop", "70", 0, 0, qfalse, qfalse )

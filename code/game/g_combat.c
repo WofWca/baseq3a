@@ -1343,9 +1343,14 @@ qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, floa
 				hitClient = qtrue;
 			}
 			VectorSubtract (ent->r.currentOrigin, origin, dir);
-			// push the center of mass higher than the origin so players
-			// get knocked into the air more
-			dir[2] += 24;
+			if (
+				g_splashMoreUpwardKnockback.integer == 1
+				|| (g_splashMoreUpwardKnockback.integer == 2 && ent != ignore)
+			) {
+				// push the center of mass higher than the origin so players
+				// get knocked into the air more
+				dir[2] += 24;
+			}
 			G_Damage (ent, NULL, attacker, dir, origin, (int)points, DAMAGE_RADIUS, mod);
 		}
 	}
