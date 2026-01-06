@@ -413,9 +413,8 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	// splash damage (doesn't apply to person directly hit,
 	// unless !g_oldSplashKnockback.integer)
 	if ( ent->splashDamage ) {
-		gentity_t *ignore = g_oldSplashKnockback.integer ? other : NULL;
 		if( G_RadiusDamage( trace->endpos, ent->parent, ent->splashDamage, ent->splashRadius, 
-			ignore, ent->splashMethodOfDeath ) ) {
+			other, ent->splashMethodOfDeath ) ) {
 			if( !hitClient ) {
 				g_entities[ent->r.ownerNum].client->accuracy_hits++;
 			}
