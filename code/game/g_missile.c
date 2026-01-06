@@ -285,7 +285,7 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	}
 #endif
 	// impact damage
-	if (other->takedamage) {
+	if (other->takedamage && g_oldSplashKnockback.integer) {
 		// FIXME: wrong damage direction?
 		if ( ent->damage ) {
 			vec3_t	velocity;
@@ -410,10 +410,12 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 
 	G_SetOrigin( ent, trace->endpos );
 
-	// splash damage (doesn't apply to person directly hit)
+	// splash damage (doesn't apply to person directly hit,
+	// unless !g_oldSplashKnockback.integer)
 	if ( ent->splashDamage ) {
+		gentity_t *ignore = g_oldSplashKnockback.integer ? other : NULL;
 		if( G_RadiusDamage( trace->endpos, ent->parent, ent->splashDamage, ent->splashRadius, 
-			other, ent->splashMethodOfDeath ) ) {
+			ignore, ent->splashMethodOfDeath ) ) {
 			if( !hitClient ) {
 				g_entities[ent->r.ownerNum].client->accuracy_hits++;
 			}

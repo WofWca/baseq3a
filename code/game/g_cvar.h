@@ -64,6 +64,12 @@ G_CVAR( g_motd, "g_motd", "", 0, 0, qfalse, qfalse )
 G_CVAR( g_blood, "com_blood", "1", 0, 0, qfalse, qfalse )
 G_CVAR( g_oldGibs, "g_oldGibs", "0", CVAR_ARCHIVE, 0, qfalse, qfalse )
 G_CVAR( g_intermissionDelay, "g_intermissionDelay", "1000", 0, 0, qfalse, qfalse )
+// When 0, splash damage makes no difference between direct hit
+// and indirect hit, i.e. damage and knockback are calculated in the same way
+// for both cases.
+// TODO note that this significantly affects the Battle Suit powerup.
+// Need to fix that.
+G_CVAR( g_oldSplashKnockback, "g_oldSplashKnockback", "1", 0, 0, qfalse, qfalse )
 
 G_CVAR( g_podiumDist, "g_podiumDist", "80", 0, 0, qfalse, qfalse )
 G_CVAR( g_podiumDrop, "g_podiumDrop", "70", 0, 0, qfalse, qfalse )
