@@ -63,6 +63,7 @@ G_CVAR( g_debugAlloc, "g_debugAlloc", "0", 0, 0, qfalse, qfalse )
 G_CVAR( g_motd, "g_motd", "", 0, 0, qfalse, qfalse )
 G_CVAR( g_blood, "com_blood", "1", 0, 0, qfalse, qfalse )
 G_CVAR( g_oldGibs, "g_oldGibs", "0", CVAR_ARCHIVE, 0, qfalse, qfalse )
+G_CVAR( g_gibsNewLogic, "g_gibsNewLogic", "0", 0, 0, qfalse, qfalse )
 G_CVAR( g_intermissionDelay, "g_intermissionDelay", "1000", 0, 0, qfalse, qfalse )
 // When 0, splash damage makes no difference between direct hit
 // and indirect hit, i.e. damage and knockback are calculated in the same way

@@ -159,6 +159,12 @@ struct gentity_s {
 	team_t		fteam;
 
 	tag_t		tag;
+
+	// TODO can we get rid of this?
+	// I tried to check for `ent->s.eType != ET_INVISIBLE`, but it didn't work.
+	// Maybe something like `prevHealth`?
+	// Or maybe we have some "list of old entity states" already?
+	// qboolean	alreadyGibbed;
 };
 
 

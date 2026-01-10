@@ -242,6 +242,10 @@ void GibEntity( gentity_t *self, int killer ) {
 	}
 #endif
 
+	if (g_gibsNewLogic.integer) {
+		return;
+	}
+
 	G_AddEvent( self, EV_GIB_PLAYER, killer );
 	self->takedamage = qfalse;
 	self->s.eType = ET_INVISIBLE;

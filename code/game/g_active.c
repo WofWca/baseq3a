@@ -58,13 +58,6 @@ void P_DamageFeedback( gentity_t *player ) {
 
 
 	client->ps.damageCount = count;
-
-	//
-	// clear totals
-	//
-	client->damage_blood = 0;
-	client->damage_armor = 0;
-	client->damage_knockback = 0;
 }
 
 
@@ -1154,6 +1147,49 @@ void ClientEndFrame( gentity_t *ent ) {
 
 	client->ps.stats[STAT_HEALTH] = ent->health;	// FIXME: get rid of ent->health...
 
+	// TODO check `meansOfDeath == MOD_SUICIDE`? And other conditions
+	// where `GibEntity` is called.
+	// TODO don't gib in nodrop, `contents & CONTENTS_NODROP`.
+	if (
+		g_gibsNewLogic.integer &&
+		g_blood.integer &&
+		// TODO ahhh, but this will not work if the player already respawned.
+		// Their "old" body will never get gibbed then...
+		// We would need to run this code for the entities themselves,
+		// maybe have `think` for the body.
+		// Also `client->damage_blood` is not relevant for such dead bodies.
+		client->ps.stats[STAT_HEALTH] <= GIB_HEALTH &&
+		// This means that they got gibbed just this frame.
+		client->damage_blood + client->damage_armor > 0
+	) {
+		// if ( !ent->alreadyGibbed ) {
+			// TODO copy-pasted from `player_die`.
+			int killer;
+			if ( ent->enemy ) {
+				killer = ent->enemy->s.number;
+			} else {
+				killer = ENTITYNUM_WORLD;
+			}
+			// TODO ummm, there is a bug. `eventParm` is one byte,
+			// but `ENTITYNUM_WORLD` doesn't fit into a byte...
+			if ( killer < 0 || killer >= MAX_CLIENTS ) {
+				killer = ENTITYNUM_WORLD;
+			}
+			
+			// TODO copy-pasted from `GibEntity`.
+			// Note that `killer` is actually unused by vanilla (and baseq3a)
+			// clients, but let's still provide it just in case.
+			G_AddEvent( ent, EV_GIB_PLAYER, killer );
+			// ent->alreadyGibbed = qtrue;
+			ent->takedamage = qfalse;
+			ent->s.eType = ET_INVISIBLE;
+			ent->r.contents = 0;
+		// }
+	} else {
+		// TODO this is a stupid way to set this.
+		// ent->alreadyGibbed = qfalse;
+	}
+
 	// This is not present in the original game code,
 	// see comments about `FL_NO_KNOCKBACK` in `g_combat`.
 	if ( client->ps.pm_type & PM_DEAD ) {
@@ -1222,6 +1258,13 @@ void ClientEndFrame( gentity_t *ent ) {
 		client->ps.persistant[PERS_HITS] -= client->damage.team;
 		client->damage.team = 0;
 	}
+
+	//
+	// clear damage totals
+	//
+	client->damage_blood = 0;
+	client->damage_armor = 0;
+	client->damage_knockback = 0;
 
 	// set the bit for the reachability area the client is currently in
 //	i = trap_AAS_PointReachabilityAreaIndex( ent->client->ps.origin );
