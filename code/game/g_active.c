@@ -1079,7 +1079,7 @@ while a slow client may have multiple ClientEndFrame between ClientThink.
 */
 void ClientEndFrame( gentity_t *ent ) {
 	static gentity_t sent;
-	int			i;
+	int			i, damageTaken;
 	gclient_t	*client;
 	// unlagged
 	int			frames;
@@ -1147,6 +1147,7 @@ void ClientEndFrame( gentity_t *ent ) {
 
 	client->ps.stats[STAT_HEALTH] = ent->health;	// FIXME: get rid of ent->health...
 
+	damageTaken = client->damage_blood + client->damage_armor;
 	// TODO check `meansOfDeath == MOD_SUICIDE`? And other conditions
 	// where `GibEntity` is called.
 	// TODO don't gib in nodrop, `contents & CONTENTS_NODROP`.
@@ -1160,26 +1161,18 @@ void ClientEndFrame( gentity_t *ent ) {
 		// Also `client->damage_blood` is not relevant for such dead bodies.
 		client->ps.stats[STAT_HEALTH] <= GIB_HEALTH &&
 		// This means that they got gibbed just this frame.
-		client->damage_blood + client->damage_armor > 0
+		damageTaken > 0
 	) {
 		// if ( !ent->alreadyGibbed ) {
-			// TODO copy-pasted from `player_die`.
-			int killer;
-			if ( ent->enemy ) {
-				killer = ent->enemy->s.number;
-			} else {
-				killer = ENTITYNUM_WORLD;
-			}
-			// TODO ummm, there is a bug. `eventParm` is one byte,
-			// but `ENTITYNUM_WORLD` doesn't fit into a byte...
-			if ( killer < 0 || killer >= MAX_CLIENTS ) {
-				killer = ENTITYNUM_WORLD;
+			int damageByte = damageTaken / 4;
+			if (damageByte > 255) {
+				damageByte = 255;
 			}
 			
 			// TODO copy-pasted from `GibEntity`.
 			// Note that `killer` is actually unused by vanilla (and baseq3a)
 			// clients, but let's still provide it just in case.
-			G_AddEvent( ent, EV_GIB_PLAYER, killer );
+			G_AddEvent( ent, EV_GIB_PLAYER, damageByte );
 			// ent->alreadyGibbed = qtrue;
 			ent->takedamage = qfalse;
 			ent->s.eType = ET_INVISIBLE;

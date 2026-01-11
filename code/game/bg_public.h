@@ -185,6 +185,8 @@ void Pmove (pmove_t *pmove);
 
 //===================================================================================
 
+#define COMBAT_MAX_KNOCKBACK 200
+
 
 // player_state->stats[] indexes
 // NOTE: may not have more than 16

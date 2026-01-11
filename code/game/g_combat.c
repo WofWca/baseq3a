@@ -243,7 +243,8 @@ void LookAtKiller( gentity_t *self, gentity_t *inflictor, gentity_t *attacker ) 
 GibEntity
 ==================
 */
-void GibEntity( gentity_t *self, int killer ) {
+void GibEntity( gentity_t *self, int damage ) {
+	int damageByte;
 #ifdef MISSIONPACK
 	gentity_t *ent;
 	int i;
@@ -269,7 +270,13 @@ void GibEntity( gentity_t *self, int killer ) {
 		return;
 	}
 
-	G_AddEvent( self, EV_GIB_PLAYER, killer );
+	// Fit into one byte, i.e. up to 1020 (255 * 4) damage.
+	damageByte = damage / 4;
+	if (damageByte > 255) {
+		damageByte = 255;
+	}
+
+	G_AddEvent( self, EV_GIB_PLAYER, damageByte );
 	self->takedamage = qfalse;
 	self->s.eType = ET_INVISIBLE;
 	self->r.contents = 0;
@@ -289,7 +296,7 @@ void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int d
 		return;
 	}
 
-	GibEntity( self, 0 );
+	GibEntity( self, damage );
 }
 
 
@@ -639,7 +646,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	// never gib in a nodrop
 	if ( (self->health <= GIB_HEALTH && !(contents & CONTENTS_NODROP) && g_blood.integer) || meansOfDeath == MOD_SUICIDE) {
 		// gib death
-		GibEntity( self, killer );
+		GibEntity( self, damage );
 	} else {
 		// normal death
 		static int i;
@@ -1011,8 +1018,8 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	}
 
 	knockback = damage;
-	if ( knockback > 200 ) {
-		knockback = 200;
+	if ( knockback > COMBAT_MAX_KNOCKBACK ) {
+		knockback = COMBAT_MAX_KNOCKBACK;
 	}
 	if ( targ->flags & FL_NO_KNOCKBACK ) {
 		knockback = 0;

@@ -642,7 +642,7 @@ Generated a bunch of gibs launching out from the bodies location
 #define	GIB_VELOCITY		250
 #define	GIB_JUMP			250
 void CG_GibPlayer( const vec3_t playerOrigin, const vec3_t playerAngles,
-					const vec3_t playerVelocity ) {
+					const vec3_t playerVelocity, const int damage ) {
 	vec3_t	origin, velocity;
 	vec3_t	forward, right;
 	// See `playerMins`, `playerMaxs`.
@@ -652,11 +652,22 @@ void CG_GibPlayer( const vec3_t playerOrigin, const vec3_t playerAngles,
 	float playerHeight = 32 - MINS_Z;
 	float bottom = playerOrigin[2] + MINS_Z;
 	float playerRadius = 15;
-	float baseRandomVelocity = cg_gibsExtraRandomVelocity.value;
+	// This is not required per se, but this "syncs" knockback
+	// and the random velocity.
+	// If the player velocity stops growing with damage,
+	// the random velocity stops too.
+	// Otherwise it's possible that some gibs get so much random velocity
+	// that they fly _towards_ the damage and not away from it.
+	int damageCapped = damage > COMBAT_MAX_KNOCKBACK ? COMBAT_MAX_KNOCKBACK : damage;
+	float baseRandomVelocity =
+		cg_gibsExtraRandomVelocity.value +
+		cg_gibsRandomVelocityFromDamageScale.value * damageCapped;
 	vec3_t playerVelocityScaled;
 	float jump = cg_gibsExtraVerticalVelocity.value;
 	int numGibs = cg_gibs.value * DEFAULT_NUM_GIBS;
 	qboolean skullLaunched = qfalse; // launch only one skull.
+
+	CG_Printf( "damage %i, damageCapped %i, baseRandomVelocity %f\n", damage, damageCapped, baseRandomVelocity );
 
 	if ( !cg_blood.integer ) {
 		return;

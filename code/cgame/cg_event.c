@@ -1222,6 +1222,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 		if (cg_oldGibs.integer) {
 			CG_GibPlayerOld( cent->lerpOrigin );
 		} else {
+			int damage = es->eventParm * 4;
 			if ( es->number == cg.snap->ps.clientNum ) {
 				// Apparently at this point `es->pos.trDelta` doesn't yet have
 				// the knockback from the damage that gibbed us,
@@ -1229,10 +1230,10 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 				// and use `cg.predictedPlayerState.velocity`
 				// if it's ourself.
 				CG_GibPlayer( cent->lerpOrigin, cent->lerpAngles,
-					cg.predictedPlayerState.velocity );
+					cg.predictedPlayerState.velocity, damage );
 			} else {
 				CG_GibPlayer( cent->lerpOrigin, cent->lerpAngles,
-					es->pos.trDelta );
+					es->pos.trDelta, damage );
 			}
 		}
 		break;
