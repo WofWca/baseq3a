@@ -533,6 +533,12 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			} else {
 				damage = 5;
 			}
+			// TODO We're not checking armor!!
+			if ( (ent->s.eFlags & EF_DEAD) || (ent->health - damage <= 0) ) {
+				G_Printf("fall far health %i\n", ent->health);
+				// damage *= 4;
+				damage *= 6;
+			}
 			ent->pain_debounce_time = level.time + 200;	// no normal pain sound
 			G_Damage (ent, NULL, NULL, NULL, NULL, damage, 0, MOD_FALLING);
 			break;
