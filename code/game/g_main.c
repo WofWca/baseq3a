@@ -1322,6 +1322,7 @@ can see the last frag.
 static void CheckExitRules( void ) {
  	int			i;
 	gclient_t	*cl;
+	const		haveFraglimit = g_gametype.integer < GT_CTF && g_fraglimit.integer;
 
 	// if at the intermission, wait for all non-bots to
 	// signal ready, then go to next level
@@ -1343,6 +1344,13 @@ static void CheckExitRules( void ) {
 			BeginIntermission();
 		}
 #endif
+
+#ifndef NO_HOLYSHIT_MOD
+		if ( haveFraglimit ) {
+			CheckAlmostHitFraglimit();
+		}
+#endif
+
 		return;
 	}
 
@@ -1364,7 +1372,7 @@ static void CheckExitRules( void ) {
 		return;
 	}
 
-	if ( g_gametype.integer < GT_CTF && g_fraglimit.integer ) {
+	if ( haveFraglimit ) {
 		if ( level.teamScores[TEAM_RED] >= g_fraglimit.integer ) {
 			G_BroadcastServerCommand( -1, "print \"Red hit the fraglimit.\n\"" );
 			LogExit( "Fraglimit hit." );
@@ -1387,6 +1395,10 @@ static void CheckExitRules( void ) {
 			}
 
 			if ( cl->ps.persistant[PERS_SCORE] >= g_fraglimit.integer ) {
+#ifndef NO_HOLYSHIT_MOD
+				cl->pers.isWinner = qtrue;
+#endif
+
 				LogExit( "Fraglimit hit." );
 				G_BroadcastServerCommand( -1, va("print \"%s" S_COLOR_WHITE " hit the fraglimit.\n\"",
 					cl->pers.netname ) );
@@ -1410,6 +1422,85 @@ static void CheckExitRules( void ) {
 		}
 	}
 }
+
+#ifndef NO_HOLYSHIT_MOD
+static void PlayGlobalHolyshitSound() {
+	gentity_t *te;
+
+	te = G_TempEntity( vec3_origin, EV_GLOBAL_SOUND );
+	te->s.eventParm = G_SoundIndex( "sound/feedback/voc_holyshit.wav" );
+	te->r.svFlags |= SVF_BROADCAST;
+}
+
+/*
+=============
+CheckAlmostHitFraglimit
+
+After match end but before intermission (when `level.intermissionQueued`),
+check if someone else would have also hit the fraglimit
+if the match hadn't ended.
+
+See also `CheckAlmostCapture` and `CheckAlmostScored`.
+=============
+*/
+static void CheckAlmostHitFraglimit( void ) {
+	int			i;
+	int 		winnerInd = -1;
+	gclient_t	*cl;
+
+	if ( !level.intermissionQueued ) {
+		// This function should not be called when `!level.intermissionQueued`.
+		return;
+	}
+
+	// Ensure that there _is_ a winner.
+	// As of writing this could be false e.g. if this is a team game,
+	// or a game with no fraglimit.
+	for ( i = 0 ; i < level.maxclients ; i++ ) {
+		cl = level.clients + i;
+		if ( cl->pers.isWinner ) {
+			winnerInd = i;
+			break;
+		}
+	}
+	if ( winnerInd == -1 ) {
+		return;
+	}
+
+	for ( i = 0 ; i < level.maxclients ; i++ ) {
+		cl = level.clients + i;
+
+		// Same checks as in `CheckExitRules`.
+		if ( cl->pers.connected != CON_CONNECTED ) {
+			continue;
+		}
+		if ( cl->sess.sessionTeam != TEAM_FREE ) {
+			continue;
+		}
+
+		// TODO the fraglimit might change after match end
+		// but before intermission.
+		// Also multiple players can "hit the fraglimit"
+		// due to the fraglimit changing to a lower value.
+		// We should not play the sound in those cases.
+		//
+		// Doing the "equal" comparison (`== g_fraglimit`) rather than `>=`
+		// improves the situation, but doesn't solve it entirely.
+		if ( cl->pers.imaginaryScore == g_fraglimit.integer &&
+			!cl->pers.isWinner &&
+			// Note that it's possible that we play the sound
+			// for multiple players.
+			!cl->pers.isAlmostWinner ) {
+
+			cl->pers.isAlmostWinner = qtrue;
+
+			G_BroadcastServerCommand( -1, va("print \"%s" S_COLOR_YELLOW " almost" S_COLOR_WHITE " hit the fraglimit.\n\"",
+				cl->pers.netname ) );
+			PlayGlobalHolyshitSound();
+		}
+	}
+}
+#endif
 
 
 static void ClearBodyQue( void ) {

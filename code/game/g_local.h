@@ -242,6 +242,19 @@ typedef struct {
 	int			voted;
 	int			teamVoted;
 
+#ifndef NO_HOLYSHIT_MOD
+	// Like `ps.persistant[PERS_SCORE]`, but this can also change
+	// after match end, i.e. when `level.intermissionQueued`.
+	int			imaginaryScore;
+	// To save (64 - 4) bytes we could be storing
+	// a single `winnerClientNum` var,
+	// but we'd have to keep track of when to invalidate it.
+	// On match end, client disconnect, etc.
+	// By storing on `clientPersistant_t` we get that for free.
+	qboolean	isWinner;
+	qboolean	isAlmostWinner;
+#endif
+
 	qboolean	inGame;
 } clientPersistant_t;
 
