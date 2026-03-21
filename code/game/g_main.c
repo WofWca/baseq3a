@@ -1396,6 +1396,7 @@ static void CheckExitRules( void ) {
 
 			if ( cl->ps.persistant[PERS_SCORE] >= g_fraglimit.integer ) {
 #ifndef NO_HOLYSHIT_MOD
+				InitHolyshit();
 				cl->pers.isWinner = qtrue;
 #endif
 
@@ -1424,6 +1425,34 @@ static void CheckExitRules( void ) {
 }
 
 #ifndef NO_HOLYSHIT_MOD
+/*
+=============
+InitHolyshit
+
+Sync imaginary scores to real scores, reset the `isWinner` fields.
+
+This should be called at match end, to ensure that the relevant fields
+don't keep values from the previous match or something,
+such as after `ExitLevel()`.
+=============
+*/
+static void InitHolyshit( void ) {
+	int			i;
+	gclient_t	*cl;
+
+	for ( i = 0 ; i < level.maxclients ; i++ ) {
+		cl = level.clients + i;
+
+		// Not checking `connected` and `sessionTeam` as in `CheckExitRules`,
+		// just copy scores for all players as is.
+
+		cl->pers.imaginaryScore = cl->ps.persistant[PERS_SCORE];
+		// And ensure that these are cleared.
+		cl->pers.isWinner = qfalse;
+		cl->pers.isAlmostWinner = qfalse;
+	}
+}
+
 static void PlayGlobalHolyshitSound() {
 	gentity_t *te;
 
