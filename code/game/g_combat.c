@@ -111,6 +111,14 @@ void TossClientItems( gentity_t *self ) {
 		angle = 45;
 		for ( i = 1 ; i < PW_NUM_POWERUPS ; i++ ) {
 			if ( self->client->ps.powerups[ i ] > level.time ) {
+				// Check if this is just a random quad and not a real one.
+				// Not a nice and reliable way, but it works 99.9% of the time.
+				if ( i == PW_QUAD &&
+					level.time <= self->client->randomQuadTime &&
+					self->client->ps.powerups[ i ] == self->client->randomQuadTime ) {
+					continue;
+				}
+
 				item = BG_FindItemForPowerup( i );
 				if ( !item ) {
 					continue;

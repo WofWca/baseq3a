@@ -44,6 +44,174 @@ void G_BounceProjectile( vec3_t start, vec3_t impact, vec3_t dir, vec3_t endout 
 	VectorMA(impact, 8192, newv, endout);
 }
 
+/*
+================
+BonusRandomQuadChance
+
+Increases `baseProbability` based on player's recent kills, awards, etc.
+The "rare high moment" system.
+================
+*/
+static float BonusRandomQuadChance( gclient_t *client, float baseProbability ) {
+	float	prob = baseProbability;
+	float	odds;
+	float	mult = 1;
+	float	divisor;
+
+	divisor = 1 - prob;
+	if ( divisor == 0 ) {
+		return 1;
+	}
+	odds = prob / divisor;
+
+	if ( level.time - client->lastKillTime < 15000 &&
+		client->lastKillTime - level.startTime > 0 ) {
+		mult *= 2;
+	}
+	if ( level.time - client->lastKillTime < 7500 &&
+		client->lastKillTime - level.startTime > 0 ) {
+		mult *= 2;
+	}
+	if ( level.time - client->rewardTime < 15000 &&
+		client->rewardTime - level.startTime > 0 ) {
+		mult *= 1.5;
+	}
+	// "Comeback" bonus
+	if ( level.time - client->respawnTime < 7500 &&
+		// But not for the initial spawn.
+		client->respawnTime - level.startTime > 1000 ) {
+		mult *= 2;
+	}
+
+	// Note that these award flags last very little, a second or two.
+	if ( client->ps.eFlags & EF_AWARD_IMPRESSIVE ) {
+		mult *= 1.25;
+	}
+	if ( client->ps.eFlags & EF_AWARD_EXCELLENT ) {
+		mult *= 1.5;
+	}
+	if ( client->ps.eFlags & EF_AWARD_GAUNTLET ) {
+		mult *= 1.5;
+	}
+	if ( client->ps.eFlags & EF_AWARD_ASSIST ) {
+		mult *= 1.25;
+	}
+	if ( client->ps.eFlags & EF_AWARD_DEFEND ) {
+		mult *= 1.25;
+	}
+	if ( client->ps.eFlags & EF_AWARD_CAP ) {
+		// We have taken the enemy intelligence.
+		mult *= 10;
+	}
+
+	// Weird one, but sounds cool.
+	// A bit dubitable since this is something that players can affect directly,
+	// motivating them to reach higher speed even if there is no reason to do it
+	// otherwise.
+	// Note that Haste reaches this running speed.
+	if ( VectorLengthSquared ( client->ps.velocity ) >= Square( g_speed.value * 1.25 ) ) {
+		mult *= 1.5;
+	}
+
+	odds *= mult;
+
+	divisor = 1 + odds;
+	if ( divisor == 0 ) {
+		// Shouldn't happen, but let's check.
+		return 0;
+	}
+	prob = odds / divisor;
+
+	return prob;
+}
+
+static void CheckRandomQuad( gentity_t *ent ) {
+	int 		duration, endTime;
+	const		isRapidfire = (
+		ent->s.weapon == WP_MACHINEGUN ||
+		ent->s.weapon == WP_LIGHTNING ||
+		ent->s.weapon == WP_PLASMAGUN ||
+		ent->s.weapon == WP_BFG );
+	static int quadSound = -2;
+
+	if ( ent->client->ps.powerups[PW_QUAD] ) {
+		// Have quad (or random quad) anyway, no need to do anything.
+		return;
+	}
+	if ( ent->s.weapon == WP_GAUNTLET ) {
+		// We apply quad to gauntlet differently. See `CheckGauntletAttack`.
+		return;
+	}
+
+	if ( isRapidfire &&
+		level.time < ent->client->randomQuadNextRapidfireCheckTime ) {
+		// As if this shot didn't happen.
+		return;
+	}
+
+	ent->client->randomQuadNextRapidfireCheckTime =
+		level.time + RANDOM_QUAD_RAPID_FIRE_CHECK_PERIOD;
+
+	if ( random() >= BonusRandomQuadChance( ent->client, g_randomQuadBaseChance.value ) ) {
+		return;
+	}
+	// It's a random quad!
+
+	// TODO There is a bit of a cheating potential with this:
+	// keep shooting a rapid-fire weapon until you get crits,
+	// then switch to the shotgun or the railgun.
+	// Or maybe it's fine since you are usually running
+	// with the best weapon anyway, plus switching weapons takes time.
+	duration = isRapidfire
+		? RANDOM_QUAD_DURATION_RAPID_FIRE
+		// For non-rapid fire weapons this is purely decorative.
+		// The effect will end by the time the weapon reloads.
+		: RANDOM_QUAD_DURATION_DEFAULT;
+	endTime = level.time + duration;
+	ent->client->ps.powerups[PW_QUAD] = endTime;
+	ent->client->randomQuadTime = endTime;
+
+	// This makes sure that the quad sound is played when other players
+	// get a random crit. Normally `ent->s.powerups` is copied
+	// from `ent->client->ps.powerups` in `BG_PlayerStateToEntityState`,
+	// but apparently that happens only on the next frame or so.
+	//
+	// Also this is needed for `fire_rocket` and such,
+	// which apply "quad" effects to missiles based on `ent->s.powerups`,
+	// which, again, is not yet copied from `ent->client->ps.powerups`
+	// by the time we call the function.
+	ent->s.powerups |= (1 << PW_QUAD);
+
+	// However, for self the sound still doesn't play,
+	// so we have to play it manually here.
+	// I believe this is because weapon fire sounds
+	// are client-side predicted.
+	//
+	// This is probably something that should be done client-side,
+	// but let's not introduce client-side changes just for this.
+	if ( quadSound == -2 ) {
+		// Expensive call, so init only once.
+		quadSound = G_SoundIndex( "sound/items/damage3.wav" );
+	}
+	{
+		gentity_t	*t;
+
+		t = G_TempEntity( ent->r.currentOrigin, EV_GENERAL_SOUND );
+		t->r.svFlags |= SVF_SINGLECLIENT;
+		t->r.singleClient = ent->s.number;
+		t->s.eventParm = quadSound;
+
+		// This is basically copy-pasted
+		// from `SendPendingPredictableEvents`.
+		// We probably shouldn't be operating on such low level,
+		// but without this the sound doesn't get "attached" to the player
+		// and it simply plays at the poisition where the player was
+		// when the sound started.
+		t->s.eFlags |= EF_PLAYER_EVENT;
+		t->s.otherEntityNum = ent->client->ps.clientNum;
+	}
+}
+
 
 /*
 ======================================================================
@@ -97,6 +265,13 @@ qboolean CheckGauntletAttack( gentity_t *ent ) {
 
 	if ( !traceEnt->takedamage ) {
 		return qfalse;
+	}
+
+	if ( !ent->client->ps.powerups[PW_QUAD] &&
+		random() < BonusRandomQuadChance( ent->client, g_randomQuadMeleeBaseChance.value ) ) {
+		const endTime = level.time + RANDOM_QUAD_DURATION_GAUNTLET;
+		ent->client->ps.powerups[PW_QUAD] = endTime;
+		ent->client->randomQuadTime = endTime;
 	}
 
 	if (ent->client->ps.powerups[PW_QUAD] ) {
@@ -854,6 +1029,8 @@ FireWeapon
 ===============
 */
 void FireWeapon( gentity_t *ent ) {
+	CheckRandomQuad( ent );
+
 	if ( ent->client->ps.powerups[PW_QUAD] ) {
 		s_quadFactor = g_quadfactor.value;
 	} else {

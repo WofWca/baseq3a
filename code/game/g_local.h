@@ -32,6 +32,12 @@
 #define FL_NO_HUMANS			0x00004000	// spawn point just for bots
 #define FL_FORCE_GESTURE		0x00008000	// force gesture on client
 
+// TODO turn these into CVARs?
+#define RANDOM_QUAD_DURATION_DEFAULT		200
+#define RANDOM_QUAD_DURATION_GAUNTLET		300
+#define RANDOM_QUAD_DURATION_RAPID_FIRE		1500
+#define RANDOM_QUAD_RAPID_FIRE_CHECK_PERIOD	1000
+
 // movers are things like doors, plats, buttons, etc
 typedef enum {
 	MOVER_POS1,
@@ -319,6 +325,10 @@ struct gclient_s {
 	int			lastKillTime;		// for multiple kill rewards
 
 	int			deathTime;			// 0 if alive
+
+	// When the random quad will end.
+	int			randomQuadTime;
+	int			randomQuadNextRapidfireCheckTime;
 
 	qboolean	fireHeld;			// used for hook
 	gentity_t	*hook;				// grapple hook if out
