@@ -62,6 +62,14 @@ struct gentity_s {
 	qboolean	neverFree;			// if true, FreeEntity will only unlink
 									// bodyque uses this
 
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+	// This slot belongs to the missile pool (see `MissilePoolSetBaselineState`).
+	// `G_Spawn` avoids these slots so that they stay available for missiles,
+	// whose baseline state they carry.
+	// Survives `G_FreeEntity`.
+	qboolean	isMissilePoolSlot;
+#endif
+
 	int			flags;				// FL_* variables
 
 	const char	*model;
@@ -357,6 +365,12 @@ struct gclient_s {
 #define NUM_SPAWN_SPOTS			(MAX_GENTITIES - MAX_CLIENTS)
 #define SPAWN_SPOT_INTERMISSION	(NUM_SPAWN_SPOTS - 1)
 
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+// How many entity slots to preallocate with missile (rocket) baseline state,
+// for better network delta compression. See `MissilePoolSetBaselineState`.
+#define MISSILE_POOL_SIZE 8
+#endif
+
 typedef struct {
 	struct gclient_s	*clients;		// [maxclients]
 
@@ -388,6 +402,10 @@ typedef struct {
 
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
 	qboolean	mustUnlinkAllClientEnts;	// only qtrue during game init
+	qboolean	mustFreeMissilePoolEnts;	// only qtrue during game init
+	// Entity numbers of the missile pool slots.
+	// Not necessarily contiguous. See `MissilePoolSetBaselineState`.
+	int			missilePoolNums[MISSILE_POOL_SIZE];
 #endif
 	int			numConnectedClients;
 	int			numNonSpectatorClients;	// includes connecting clients
@@ -585,6 +603,9 @@ void TossClientCubes( gentity_t *self );
 // g_missile.c
 //
 void G_RunMissile( gentity_t *ent );
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+void MissilePoolSetBaselineState( void );
+#endif
 
 gentity_t *fire_blaster (gentity_t *self, vec3_t start, vec3_t aimdir);
 gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t aimdir);

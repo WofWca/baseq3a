@@ -395,6 +395,17 @@ gentity_t *G_Spawn( void ) {
 				continue;
 			}
 
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+			// Keep missile pool slots for missiles
+			// (see `G_SpawnFromMissilePool`), because they have
+			// missile baseline state (better delta compression).
+			// Unless we're running out of regular slots,
+			// in which case gameplay is more important.
+			if ( e->isMissilePoolSlot && timeout > 0 ) {
+				continue;
+			}
+#endif
+
 			// reuse this slot
 			G_InitGentity( e );
 			return e;
@@ -453,6 +464,10 @@ Marks the entity as free
 =================
 */
 void G_FreeEntity( gentity_t *ed ) {
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+	qboolean	isMissilePoolSlot = ed->isMissilePoolSlot;
+#endif
+
 	trap_UnlinkEntity (ed);		// unlink from world
 
 	if ( ed->neverFree ) {
@@ -463,6 +478,10 @@ void G_FreeEntity( gentity_t *ed ) {
 	ed->classname = "freed";
 	ed->freetime = level.time;
 	ed->inuse = qfalse;
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+	// The slot remains reserved for missiles even when free.
+	ed->isMissilePoolSlot = isMissilePoolSlot;
+#endif
 }
 
 

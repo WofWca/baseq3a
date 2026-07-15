@@ -555,6 +555,9 @@ static void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	G_Printf( "setting %i client entities' baseline state for better delta compression\n",
 		level.maxclients );
 	ClientsSetBaselineState();
+	G_Printf( "setting %i missile pool entities' baseline state for better delta compression\n",
+		MISSILE_POOL_SIZE );
+	MissilePoolSetBaselineState();
 #endif
 
 	G_Printf ("-----------------------------------\n");

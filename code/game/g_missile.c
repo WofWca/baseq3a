@@ -4,6 +4,120 @@
 
 #define	MISSILE_PRESTEP_TIME	50
 
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+/*
+================
+MissilePoolSetBaselineState
+
+Called by `G_InitGame`, i.e. right before `SV_CreateBaseline`.
+Should be called after `G_LocateSpawnSpots`, otherwise might have no effect.
+Similar to `ClientsSetBaselineState`, but for missiles.
+
+Missiles get spawned and freed all the time, and unlike clients and the body
+queue they don't have dedicated entity numbers, so on its own the baseline
+optimization can't apply to them. This function preallocates a pool of
+`MISSILE_POOL_SIZE` entity slots, sets likely (rocket) baseline state on them,
+and `G_SpawnFromMissilePool` then prefers these slots when firing a rocket,
+so that most of the time the baseline actually matches.
+
+The entities themselves only live until `SV_CreateBaseline` has run
+(see `level.mustFreeMissilePoolEnts`); after that only their slot numbers
+(`level.missilePoolNums`) and the `isMissilePoolSlot` mark remain.
+
+The pool is not exclusive: if all pool slots are taken, rockets fall back to
+`G_Spawn`, and conversely `G_Spawn` may hand out pool slots to other entities
+when it is out of regular slots.
+================
+*/
+void MissilePoolSetBaselineState( void ) {
+	int			i;
+	qboolean	warningPrinted = qfalse;
+
+	for ( i = 0 ; i < MISSILE_POOL_SIZE ; i++ ) {
+		gentity_t	*ent = G_Spawn();
+
+		level.missilePoolNums[i] = ent->s.number;
+		ent->isMissilePoolSlot = qtrue;
+		
+		// Might be breaking.
+		// ent->classname = "missilepool";
+
+		// Set likely baseline state, for better delta compression.
+		// Same as the constant fields in `fire_rocket`.
+		ent->s.eType = ET_MISSILE;
+		ent->s.weapon = WP_ROCKET_LAUNCHER;
+		ent->s.pos.trType = TR_LINEAR;
+
+		// The server engine only runs a few frames between `G_InitGame` and
+		// `SV_CreateBaseline`, and `G_RunMissile` will run on this entity
+		// during those frames. This is harmless: `clipmask` is 0 so the
+		// trace hits nothing, `pos.trDelta` is 0 so it doesn't move,
+		// and `nextthink` is 0. It even re-links the entity for us.
+		//
+		// But for that (and for `SV_CreateBaseline`, see
+		// `ClientsSetBaselineState`) the entity needs to be linked,
+		// which requires an origin inside the world.
+		if ( level.spawnSpots[0] ) {
+			VectorCopy( level.spawnSpots[0]->s.origin, ent->s.pos.trBase );
+			VectorCopy( level.spawnSpots[0]->s.origin, ent->r.currentOrigin );
+		}
+
+		trap_LinkEntity( ent );
+		if ( !ent->r.linked && !warningPrinted ) {
+			G_Printf( S_COLOR_YELLOW "WARNING: MissilePoolSetBaselineState did not actually link the entity, delta compression will be less efficient\n" );
+			warningPrinted = qtrue;
+		}
+
+		// We've linked the entity, but let's not send it to clients.
+		ent->r.svFlags = SVF_NOCLIENT;
+	}
+
+	// Free the entities (making the pool slots available) ASAP
+	// after `SV_CreateBaseline` has run.
+	level.mustFreeMissilePoolEnts = qtrue;
+}
+
+
+/*
+================
+G_SpawnFromMissilePool
+
+Same as `G_Spawn`, but first tries to take a slot from the missile pool,
+because those slots have missile baseline state,
+which makes for better delta compression.
+See `MissilePoolSetBaselineState`.
+================
+*/
+static gentity_t *G_SpawnFromMissilePool( void ) {
+	int			i;
+	gentity_t	*e;
+
+	for ( i = 0 ; i < MISSILE_POOL_SIZE ; i++ ) {
+		e = &g_entities[ level.missilePoolNums[i] ];
+		// Note that this is also qtrue for all the slots until
+		// `level.mustFreeMissilePoolEnts` gets handled,
+		// but no missiles get fired before that anyway.
+		if ( e->inuse ) {
+			continue;
+		}
+
+		// Same policy as in `G_Spawn`: avoid reusing an entity
+		// that was recently freed.
+		if ( e->freetime > level.startTime + 2000 && level.time - e->freetime < 1000 ) {
+			continue;
+		}
+
+		G_InitGentity( e );
+		return e;
+	}
+
+	// The whole pool is in use.
+	return G_Spawn();
+}
+#else
+#define G_SpawnFromMissilePool G_Spawn
+#endif
+
 /*
 ================
 G_BounceMissile
@@ -654,7 +768,7 @@ gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir) {
 
 	VectorNormalize (dir);
 
-	bolt = G_Spawn();
+	bolt = G_SpawnFromMissilePool();
 	bolt->classname = "rocket";
 	bolt->nextthink = level.time + 15000;
 	bolt->think = G_ExplodeMissile;

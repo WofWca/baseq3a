@@ -888,6 +888,18 @@ const char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 		}
 		level.mustUnlinkAllClientEnts = qfalse;
 	}
+
+	// Same idea as above: `SV_CreateBaseline` has run by now,
+	// so the pool entities have served their purpose.
+	// Free them so that the slots become available for actual missiles
+	// (see `G_SpawnFromMissilePool`).
+	if ( level.mustFreeMissilePoolEnts ) {
+		G_Printf( "missile pool entities' baseline state set, now freeing them all\n" );
+		for ( i = 0 ; i < MISSILE_POOL_SIZE ; i++ ) {
+			G_FreeEntity( &g_entities[ level.missilePoolNums[i] ] );
+		}
+		level.mustFreeMissilePoolEnts = qfalse;
+	}
 #endif
 
 	if ( clientNum >= level.maxclients ) {
