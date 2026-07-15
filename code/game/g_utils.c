@@ -396,12 +396,12 @@ gentity_t *G_Spawn( void ) {
 			}
 
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-			// Keep missile pool slots for missiles
-			// (see `G_SpawnFromMissilePool`), because they have
-			// missile baseline state (better delta compression).
+			// Keep pool slots for the entity kinds they belong to
+			// (see `G_SpawnFromEntPool`), because they have
+			// matching baseline state (better delta compression).
 			// Unless we're running out of regular slots,
 			// in which case gameplay is more important.
-			if ( e->isMissilePoolSlot && timeout > 0 ) {
+			if ( e->isEntPoolSlot && timeout > 0 ) {
 				continue;
 			}
 #endif
@@ -465,7 +465,7 @@ Marks the entity as free
 */
 void G_FreeEntity( gentity_t *ed ) {
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-	qboolean	isMissilePoolSlot = ed->isMissilePoolSlot;
+	qboolean	isEntPoolSlot = ed->isEntPoolSlot;
 #endif
 
 	trap_UnlinkEntity (ed);		// unlink from world
@@ -479,10 +479,204 @@ void G_FreeEntity( gentity_t *ed ) {
 	ed->freetime = level.time;
 	ed->inuse = qfalse;
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-	// The slot remains reserved for missiles even when free.
-	ed->isMissilePoolSlot = isMissilePoolSlot;
+	// The slot remains reserved for its pool even when free.
+	ed->isEntPoolSlot = isEntPoolSlot;
 #endif
 }
+
+
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+typedef struct {
+	int		numSlots;	// must be <= ENTPOOL_MAX_SLOTS
+	// The baseline values.
+	int		eType;
+	int		weapon;
+	int		trType;
+	int		eFlags;
+} entPoolDef_t;
+
+// The sizes are a tradeoff: every slot adds an entry
+// to the initial `svc_gamestate` message, and a slot only pays off
+// while its kind of entity actually occupies it.
+// Long bursts of fire will exhaust a pool
+// (also keep in mind the 1000ms reuse delay, see `G_SpawnFromEntPool`),
+// after which extra entities fall back to regular slots -
+// that's fine, we only lose the optimization, not the entity.
+static const entPoolDef_t entPoolDefs[ENTPOOL_NUM_POOLS] = {
+	// Must be in the same order as `entPool_t`.
+	{ 8,	ET_MISSILE,	WP_ROCKET_LAUNCHER,		TR_LINEAR,		0 },
+	{ 12,	ET_MISSILE,	WP_PLASMAGUN,			TR_LINEAR,		0 },
+	{ 6,	ET_MISSILE,	WP_GRENADE_LAUNCHER,	TR_GRAVITY,		EF_BOUNCE_HALF },
+	{ 2,	ET_MISSILE,	WP_BFG,					TR_LINEAR,		0 },
+	// The lightning gun is by far the most frequent creator of these two,
+	// hence `WP_LIGHTNING` as the baseline `weapon`
+	// (see `Weapon_LightningFire`; the gauntlet also makes
+	// `EV_MISSILE_HIT`, but much less often).
+	{ 12,	ET_EVENTS + EV_MISSILE_MISS,		WP_LIGHTNING,	TR_STATIONARY,	0 },
+	{ 6,	ET_EVENTS + EV_MISSILE_HIT,			WP_LIGHTNING,	TR_STATIONARY,	0 },
+	{ 8,	ET_EVENTS + EV_BULLET_HIT_WALL,		0,				TR_STATIONARY,	0 },
+	{ 6,	ET_EVENTS + EV_BULLET_HIT_FLESH,	0,				TR_STATIONARY,	0 },
+	{ 2,	ET_EVENTS + EV_SHOTGUN,				0,				TR_STATIONARY,	0 },
+	{ 2,	ET_EVENTS + EV_RAILTRAIL,			0,				TR_STATIONARY,	0 },
+};
+
+
+/*
+================
+EntPoolsSetBaselineState
+
+Called by `G_InitGame`, i.e. right before `SV_CreateBaseline`.
+Should be called after `G_LocateSpawnSpots`, otherwise might have no effect.
+Similar to `ClientsSetBaselineState`, but for entities that get spawned
+and freed all the time: missiles and frequent temp (event) entities.
+
+Unlike clients and the body queue, these don't have dedicated
+entity numbers, so on its own the baseline optimization can't apply to them.
+This function preallocates pools of entity slots (see `entPoolDefs`),
+sets likely baseline state on them, and `G_SpawnFromEntPool` then
+prefers a matching slot when spawning such an entity,
+so that most of the time the baseline actually matches.
+
+The entities themselves only live until `SV_CreateBaseline` has run
+(see `level.mustFreeEntPoolEnts`); after that only their slot numbers
+(`level.entPoolNums`) and the `isEntPoolSlot` mark remain.
+
+The pools are not exclusive: if a pool is fully occupied, its entities
+fall back to `G_Spawn`, and conversely `G_Spawn` may hand out pool slots
+to other entities when it is out of regular slots.
+================
+*/
+void EntPoolsSetBaselineState( void ) {
+	int			pool;
+	int			i;
+	qboolean	warningPrinted = qfalse;
+
+	for ( pool = 0 ; pool < ENTPOOL_NUM_POOLS ; pool++ ) {
+		const entPoolDef_t	*def = &entPoolDefs[ pool ];
+
+		for ( i = 0 ; i < def->numSlots ; i++ ) {
+			gentity_t	*ent = G_Spawn();
+
+			level.entPoolNums[pool][i] = ent->s.number;
+			ent->isEntPoolSlot = qtrue;
+
+			// Set likely baseline state, for better delta compression.
+			// Same as the constant fields set by whoever spawns this kind
+			// of entity (`fire_rocket`, `G_TempEntity` + its callers, ...).
+			ent->s.eType = def->eType;
+			ent->s.weapon = def->weapon;
+			ent->s.pos.trType = def->trType;
+			ent->s.eFlags = def->eFlags;
+
+			// The server engine runs a few frames between `G_InitGame` and
+			// `SV_CreateBaseline`, and e.g. `G_RunMissile` will run on the
+			// `ET_MISSILE` entities during those frames. This is harmless:
+			// `clipmask` is 0 so the trace hits nothing, `pos.trDelta` is 0
+			// so they don't move, and `nextthink` is 0.
+			// It even re-links the entities for us.
+			//
+			// Except `TR_GRAVITY` entities would fall regardless of
+			// `pos.trDelta`, and with `pos.trTime == 0` the fall distance
+			// is computed from the beginning of server time, which would
+			// send `r.currentOrigin` far below the world.
+			// Setting `pos.trTime` to now limits the fall to a few units.
+			// The real entities always override `pos.trTime` anyway.
+			if ( def->trType == TR_GRAVITY ) {
+				ent->s.pos.trTime = level.time;
+			}
+
+			// For `SV_CreateBaseline` (and for the traces mentioned above)
+			// the entity needs to be linked,
+			// which requires an origin inside the world.
+			// See `ClientsSetBaselineState`.
+			if ( level.spawnSpots[0] ) {
+				VectorCopy( level.spawnSpots[0]->s.origin, ent->s.pos.trBase );
+				VectorCopy( level.spawnSpots[0]->s.origin, ent->r.currentOrigin );
+			}
+
+			trap_LinkEntity( ent );
+			if ( !ent->r.linked && !warningPrinted ) {
+				G_Printf( S_COLOR_YELLOW "WARNING: EntPoolsSetBaselineState did not actually link the entity, delta compression will be less efficient\n" );
+				warningPrinted = qtrue;
+			}
+
+			// We've linked the entity, but let's not send it to clients.
+			ent->r.svFlags = SVF_NOCLIENT;
+		}
+	}
+
+	// Free the entities (making the pool slots available) ASAP
+	// after `SV_CreateBaseline` has run.
+	level.mustFreeEntPoolEnts = qtrue;
+
+	level.entPoolsInitialized = qtrue;
+}
+
+
+/*
+================
+EntPoolsFreeEnts
+
+Frees the entities created by `EntPoolsSetBaselineState`.
+To be called once `SV_CreateBaseline` has run,
+see `level.mustFreeEntPoolEnts`.
+================
+*/
+void EntPoolsFreeEnts( void ) {
+	int		pool;
+	int		i;
+
+	for ( pool = 0 ; pool < ENTPOOL_NUM_POOLS ; pool++ ) {
+		for ( i = 0 ; i < entPoolDefs[pool].numSlots ; i++ ) {
+			G_FreeEntity( &g_entities[ level.entPoolNums[pool][i] ] );
+		}
+	}
+}
+
+
+/*
+================
+G_SpawnFromEntPool
+
+Same as `G_Spawn`, but first tries to take a slot from the given pool,
+because those slots have matching baseline state,
+which makes for better delta compression.
+See `EntPoolsSetBaselineState`.
+================
+*/
+gentity_t *G_SpawnFromEntPool( entPool_t pool ) {
+	int			i;
+	gentity_t	*e;
+
+	// Guard against being called before the pools are set up,
+	// in which case `level.entPoolNums` would point at client slots (0).
+	if ( !level.entPoolsInitialized ) {
+		return G_Spawn();
+	}
+
+	for ( i = 0 ; i < entPoolDefs[pool].numSlots ; i++ ) {
+		e = &g_entities[ level.entPoolNums[pool][i] ];
+		// Note that this is also qtrue for all the slots until
+		// `level.mustFreeEntPoolEnts` gets handled,
+		// but that only lasts until the first `ClientConnect`.
+		if ( e->inuse ) {
+			continue;
+		}
+
+		// Same policy as in `G_Spawn`: avoid reusing an entity
+		// that was recently freed.
+		if ( e->freetime > level.startTime + 2000 && level.time - e->freetime < 1000 ) {
+			continue;
+		}
+
+		G_InitGentity( e );
+		return e;
+	}
+
+	// The whole pool is in use.
+	return G_Spawn();
+}
+#endif
 
 
 /*
@@ -498,7 +692,36 @@ gentity_t *G_TempEntity( vec3_t origin, int event ) {
 	gentity_t		*e;
 	vec3_t		snapped;
 
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+	// The most frequent events have entity pools with matching
+	// baseline state, for better delta compression.
+	// See `EntPoolsSetBaselineState`.
+	switch ( event ) {
+	case EV_MISSILE_MISS:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_MISSILE_MISS );
+		break;
+	case EV_MISSILE_HIT:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_MISSILE_HIT );
+		break;
+	case EV_BULLET_HIT_WALL:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_BULLET_HIT_WALL );
+		break;
+	case EV_BULLET_HIT_FLESH:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_BULLET_HIT_FLESH );
+		break;
+	case EV_SHOTGUN:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_SHOTGUN );
+		break;
+	case EV_RAILTRAIL:
+		e = G_SpawnFromEntPool( ENTPOOL_EV_RAILTRAIL );
+		break;
+	default:
+		e = G_Spawn();
+		break;
+	}
+#else
 	e = G_Spawn();
+#endif
 	e->s.eType = ET_EVENTS + event;
 
 	e->classname = "tempEntity";

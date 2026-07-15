@@ -63,11 +63,12 @@ struct gentity_s {
 									// bodyque uses this
 
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-	// This slot belongs to the missile pool (see `MissilePoolSetBaselineState`).
-	// `G_Spawn` avoids these slots so that they stay available for missiles,
-	// whose baseline state they carry.
+	// This slot belongs to one of the entity pools
+	// (see `EntPoolsSetBaselineState`).
+	// `G_Spawn` avoids these slots so that they stay available
+	// for the kind of entity whose baseline state they carry.
 	// Survives `G_FreeEntity`.
-	qboolean	isMissilePoolSlot;
+	qboolean	isEntPoolSlot;
 #endif
 
 	int			flags;				// FL_* variables
@@ -366,9 +367,33 @@ struct gclient_s {
 #define SPAWN_SPOT_INTERMISSION	(NUM_SPAWN_SPOTS - 1)
 
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-// How many entity slots to preallocate with missile (rocket) baseline state,
-// for better network delta compression. See `MissilePoolSetBaselineState`.
-#define MISSILE_POOL_SIZE 8
+// Pools of preallocated entity slots with likely baseline state,
+// for better network delta compression. See `EntPoolsSetBaselineState`.
+// The sizes and baseline values live in `entPoolDefs` (g_utils.c).
+typedef enum {
+	// Missiles.
+	ENTPOOL_ROCKET,
+	ENTPOOL_PLASMA,
+	ENTPOOL_GRENADE,
+	ENTPOOL_BFG,
+
+	// Frequent temp (event) entities, see `G_TempEntity`.
+	// The lightning gun makes an `EV_MISSILE_MISS` or `EV_MISSILE_HIT`
+	// every 50ms of continuous fire, which makes them
+	// the most frequently spawned entities of all.
+	ENTPOOL_EV_MISSILE_MISS,
+	ENTPOOL_EV_MISSILE_HIT,
+	// Machinegun, every 100ms of continuous fire.
+	ENTPOOL_EV_BULLET_HIT_WALL,
+	ENTPOOL_EV_BULLET_HIT_FLESH,
+	ENTPOOL_EV_SHOTGUN,
+	ENTPOOL_EV_RAILTRAIL,
+
+	ENTPOOL_NUM_POOLS
+} entPool_t;
+
+// Must be >= the largest `numSlots` in `entPoolDefs`.
+#define ENTPOOL_MAX_SLOTS 12
 #endif
 
 typedef struct {
@@ -402,10 +427,13 @@ typedef struct {
 
 #ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
 	qboolean	mustUnlinkAllClientEnts;	// only qtrue during game init
-	qboolean	mustFreeMissilePoolEnts;	// only qtrue during game init
-	// Entity numbers of the missile pool slots.
-	// Not necessarily contiguous. See `MissilePoolSetBaselineState`.
-	int			missilePoolNums[MISSILE_POOL_SIZE];
+	qboolean	mustFreeEntPoolEnts;		// only qtrue during game init
+	// qtrue once `EntPoolsSetBaselineState` has run
+	// and `level.entPoolNums` is valid.
+	qboolean	entPoolsInitialized;
+	// Entity numbers of the pool slots.
+	// Not necessarily contiguous. See `EntPoolsSetBaselineState`.
+	int			entPoolNums[ENTPOOL_NUM_POOLS][ENTPOOL_MAX_SLOTS];
 #endif
 	int			numConnectedClients;
 	int			numNonSpectatorClients;	// includes connecting clients
@@ -542,6 +570,14 @@ void	G_SetMovedir ( vec3_t angles, vec3_t movedir);
 
 void	G_InitGentity( gentity_t *e );
 gentity_t	*G_Spawn (void);
+#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
+void	EntPoolsSetBaselineState( void );
+void	EntPoolsFreeEnts( void );
+gentity_t	*G_SpawnFromEntPool( entPool_t pool );
+#else
+// So that the call sites don't need #ifndef's.
+#define G_SpawnFromEntPool( pool ) G_Spawn()
+#endif
 gentity_t *G_TempEntity( vec3_t origin, int event );
 void	G_Sound( gentity_t *ent, int channel, int soundIndex );
 void	G_FreeEntity( gentity_t *e );
@@ -603,9 +639,6 @@ void TossClientCubes( gentity_t *self );
 // g_missile.c
 //
 void G_RunMissile( gentity_t *ent );
-#ifndef NO_OPTIMIZED_BASELINE_ENTITY_STATE
-void MissilePoolSetBaselineState( void );
-#endif
 
 gentity_t *fire_blaster (gentity_t *self, vec3_t start, vec3_t aimdir);
 gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t aimdir);
