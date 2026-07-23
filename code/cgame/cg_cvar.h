@@ -34,11 +34,20 @@ CG_CVAR( cg_draw3dIcons, "cg_draw3dIcons", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_drawIcons, "cg_drawIcons", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_drawAmmoWarning, "cg_drawAmmoWarning", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_drawAttacker, "cg_drawAttacker", "1", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_drawSpeed, "cg_drawSpeed", "0", CVAR_ARCHIVE, NULL )
+CG_CVAR( cg_drawSpeed, "cg_drawSpeed", "0", CVAR_ARCHIVE,
+	"draw xy-speed\n"
+	"0 - disabled\n"
+	"1 - in top-right corner\n"
+	"2 - under crosshair" )
 CG_CVAR( cg_drawCrosshair, "cg_drawCrosshair", "4", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_drawCrosshairNames, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_drawRewards, "cg_drawRewards", "1", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_drawWeaponSelect, "cg_drawWeaponSelect", "1", CVAR_ARCHIVE, NULL )
+CG_CVAR( cg_drawWeaponSelect, "cg_drawWeaponSelect", "1", CVAR_ARCHIVE,
+	"0 - disabled\n"
+	"1 - horizontal with weapon name\n"
+	"2 - horizontal with ammo counters\n"
+	"3 - vectical with ammo counters\n"
+	"use negative values to force permanent display" )
 CG_CVAR( cg_crosshairSize, "cg_crosshairSize", "24", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_crosshairHealth, "cg_crosshairHealth", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_crosshairX, "cg_crosshairX", "0", CVAR_ARCHIVE, NULL )
@@ -50,7 +59,8 @@ CG_CVAR( cg_addMarks, "cg_marks", "1", CVAR_ARCHIVE,
 	"Display bullet and gib impact marks on surfaces" )
 CG_CVAR( cg_lagometer, "cg_lagometer", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_railTrailTime, "cg_railTrailTime", "400", CVAR_ARCHIVE , NULL )
-CG_CVAR( cg_railTrailRadius, "cg_railTrailRadius", "0", CVAR_ARCHIVE , NULL )
+CG_CVAR( cg_railTrailRadius, "cg_railTrailRadius", "0", CVAR_ARCHIVE ,
+	"radius for linear light source, available only in q3e engine atm" )
 CG_CVAR( cg_gun_frame, "cg_gun_frame", "", CVAR_ROM, NULL )
 CG_CVAR( cg_gun_x, "cg_gunX", "0", CVAR_ARCHIVE,
 	"Visually offset first-person weapon further/closer" )
@@ -152,13 +162,51 @@ CG_CVAR( cg_oldRail, "cg_oldRail", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_oldRocket, "cg_oldRocket", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_oldPlasma, "cg_oldPlasma", "1", CVAR_ARCHIVE, NULL )
 CG_CVAR( cg_trueLightning, "cg_trueLightning", "0.0", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_hitSounds, "cg_hitSounds", "0", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_enemyModel, "cg_enemyModel", "", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_enemyColors, "cg_enemyColors", "", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_teamModel, "cg_teamModel", "", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_teamColors, "cg_teamColors", "", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_deadBodyDarken, "cg_deadBodyDarken", "1", CVAR_ARCHIVE, NULL )
-CG_CVAR( cg_fovAdjust, "cg_fovAdjust", "0", CVAR_ARCHIVE, NULL )
+CG_CVAR( cg_hitSounds, "cg_hitSounds", "0", CVAR_ARCHIVE,
+	"damage-based hitsounds\n"
+	"\n"
+	"0 - standard fixed tone\n"
+	"1 - higher damage - lower tone\n"
+	"1 - higher damage - higher tone\n"
+	"\n"
+	"requires proper from server in PERS_ATTACKEE_ARMOR\n" )
+CG_CVAR( cg_enemyModel, "cg_enemyModel", "", CVAR_ARCHIVE, 
+	"sets model for enemies\n"
+	"\"pm\" means use current bright colored enemy model "
+	"if model is known for mod i.e. there is possible to modify model colors\n"
+	"if model is unknown (like \"alien\" or so) "
+	"then it will be forced to \"sarge\"" )
+CG_CVAR( cg_enemyColors, "cg_enemyColors", "", CVAR_ARCHIVE,
+	"colorstring is a 3 [or 5] char-length string, where\n"
+	"\n"
+	"1st char - head color, all colors forced to \'???\' if not set\n"
+	"2nd char - torso color, forced to white if not set\n"
+	"3rd char - legs color, forced to white if not set\n"
+	"\n"
+	"4th char - optional, color1 override\n"
+	"5th char - optional, color2 override\n"
+	"\n"
+	"'?' will be replaced to white in FFA games "
+	"or corresponding team color (red or blue) in team games\n"
+	"\n"
+	"!!! will work only if cg_enemyModel is set !!!" )
+CG_CVAR( cg_teamModel, "cg_teamModel", "", CVAR_ARCHIVE,
+	"sets model for your teammates. See cg_enemyModel" )
+CG_CVAR( cg_teamColors, "cg_teamColors", "", CVAR_ARCHIVE,
+	"syntax and values is the same as for cg_enemyColors\n"
+	"\n"
+	"colorstring[4] and [5] will ALWAYS override color1 and color2 "
+	"for spectated client\n"
+	"\n"
+	"but head, torso and legs colors will work corectly "
+	"only if cg_teamModel is set" )
+CG_CVAR( cg_deadBodyDarken, "cg_deadBodyDarken", "1", CVAR_ARCHIVE,
+	"turn dead bodies into grey color\n"
+	"\n"
+	"works only if cg_enemyModel is set\n" )
+CG_CVAR( cg_fovAdjust, "cg_fovAdjust", "0", CVAR_ARCHIVE,
+	"Automatically rescale cg_fov from desired 4x3 screen ratio "
+	"to widescreen resolution" )
 CG_CVAR( cg_followKiller, "cg_followKiller", "0", CVAR_ARCHIVE, NULL )
 
 #undef CG_CVAR
