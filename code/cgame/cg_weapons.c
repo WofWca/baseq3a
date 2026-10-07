@@ -1567,7 +1567,7 @@ void CG_DrawWeaponSelect( void ) {
 	cg.itemPickupTime = 0;
 
 	// count the number of weapons owned
-	bits = cg.snap->ps.stats[ STAT_WEAPONS ];
+	bits = cg.predictedPlayerState.stats[ STAT_WEAPONS ];
 	count = 0;
 	for ( i = WP_GAUNTLET ; i < MAX_WEAPONS ; i++ ) {
 		if ( bits & ( 1 << i ) ) {
@@ -1603,11 +1603,11 @@ void CG_DrawWeaponSelect( void ) {
 		}
 
 		// no ammo cross on top
-		if ( !cg.snap->ps.ammo[ i ] ) {
+		if ( !cg.predictedPlayerState.ammo[ i ] ) {
 			CG_DrawPic( x, y, 32, 32, cgs.media.noammoShader );
-		} else if ( weaponSelect > 1 && cg.snap->ps.ammo[ i ] > 0 ) {
+		} else if ( weaponSelect > 1 && cg.predictedPlayerState.ammo[ i ] > 0 ) {
 			// ammo counter
-			BG_sprintf( buf, "%i", cg.snap->ps.ammo[ i ] );
+			BG_sprintf( buf, "%i", cg.predictedPlayerState.ammo[ i ] );
 			if ( weaponSelect == 2 ) {
 				// horizontal ammo counters
 				CG_DrawString( x + 32/2, y - 20, buf, color, AMMO_FONT_SIZE, AMMO_FONT_SIZE, 0, DS_CENTER | DS_PROPORTIONAL );
@@ -1639,10 +1639,10 @@ CG_WeaponSelectable
 ===============
 */
 static qboolean CG_WeaponSelectable( int i ) {
-	if ( !cg.snap->ps.ammo[i] ) {
+	if ( !cg.predictedPlayerState.ammo[i] ) {
 		return qfalse;
 	}
-	if ( ! (cg.snap->ps.stats[ STAT_WEAPONS ] & ( 1 << i ) ) ) {
+	if ( ! (cg.predictedPlayerState.stats[ STAT_WEAPONS ] & ( 1 << i ) ) ) {
 		return qfalse;
 	}
 
@@ -1752,7 +1752,7 @@ void CG_Weapon_f( void ) {
 		return;
 	}
 
-	if ( ! ( cg.snap->ps.stats[STAT_WEAPONS] & ( 1 << num ) ) ) {
+	if ( ! ( cg.predictedPlayerState.stats[STAT_WEAPONS] & ( 1 << num ) ) ) {
 		return;		// don't have the weapon
 	}
 
