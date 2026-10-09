@@ -704,6 +704,11 @@ static void CG_DrawStatusBar( void ) {
 	// armor
 	//
 	value = ps->stats[STAT_ARMOR];
+	if ( value > 100 ) {
+		color = 3; // white
+	} else {
+		color = 0; 	// yellow
+	}
 	if ( value > 0 ) {
 #ifdef USE_NEW_FONT_RENDERER
 		CG_SelectFont( 1 );
