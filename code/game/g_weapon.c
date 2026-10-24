@@ -369,7 +369,7 @@ static void weapon_supershotgun_fire( gentity_t *ent ) {
 	gentity_t		*tent;
 
 	// send shotgun blast
-	tent = G_TempEntity( muzzle, EV_SHOTGUN );
+	tent = G_TempEntity( muzzle_origin, EV_SHOTGUN );
 	VectorScale( forward, 4096.0, tent->s.origin2 );
 
 	SnapVector( tent->s.origin2 );
