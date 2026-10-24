@@ -376,7 +376,10 @@ static void weapon_supershotgun_fire( gentity_t *ent ) {
 	tent->s.eventParm = rand() & 255;		// seed for spread pattern
 	tent->s.otherEntityNum = ent->s.number;
 
-	ShotgunPattern( muzzle_origin, tent->s.origin2, tent->s.eventParm, ent );
+	// Use the non-snapped origin and direction for damage calculation.
+	// This results in a mismatch with the visual `EV_SHOTGUN`,
+	// but accurately preserves the actual aiming direction and origin.
+	ShotgunPattern( muzzle_origin, forward, tent->s.eventParm, ent );
 }
 
 
